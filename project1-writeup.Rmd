@@ -1,0 +1,179 @@
+---
+title: "Project 1 Writeup"
+author: "Mary-Kathryn Wert and Ian Chang"
+output:
+  pdf_document:
+    latex_engine: xelatex
+    toc: no
+    number_sections: true
+    pandoc_args: ["--extract-media", "."]
+  html_document: default
+urlcolor: blue
+fontsize: 12pt
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE, 
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  comment = "#>", 
+  out.width = "100%"
+)
+```
+
+# Evaluation of Original Graph
+The original graph effectively communicates its main point—that more than half 
+of the global area burned by wildfires occurs in Africa—through its strong and 
+visually cohesive design. The title is clear and impactful, with the word 
+“Africa” highlighted in red to match the corresponding color used for the 
+region in the chart, reinforcing the visual emphasis on these results. The use 
+of a stacked bar format is appropriate for showing proportions over time and a 
+dotted line at 50% subtly underscores the central message highlighted in the 
+title of the graph. However, the chart could benefit from several improvements.
+A stacked bar chart is appropriate for showing proportions, it is also hard to 
+determine the proportions exhibited beyond the base region. Additionally, there
+are potential issues with color in terms of accessibility and labeling.
+
+# Visualization of Data
+The new visualization created attempts to solve the minor issues we had in the
+orginal graph. The new graph is a line graph to which makes it easier to 
+determine the specific proportion of wildfire burned for each region per year. 
+Along with the representation type, changes were made aesthetically in order 
+to make the graph more accessible and easier to understand for the viewer. 
+While the original color palette is aesthetically consistent, some of the 
+shades can be difficult to distinguish, especially for viewers with impaired 
+color vision which is why the new graph uses colors from the brewer color 
+palette which is specifically created with friendly colors. Secondly, the 
+original chart lacks a proper legend. The use of a legend in the new graph 
+addresses providing context for each line while retaining good legibility. 
+Grouping North and South America together felt arbitrary as well in the 
+labeling of regions against the bar plot, especially when other continents are 
+shown separately. Thirdly, the x-axis could be improved by adding more year 
+markers. This change is especially important in terms of the choice to make a 
+line graph. The markers help the readers quickly understand the temporal scope 
+of the data. Although the Americas are often grouped as “New World” regions, 
+the ecosystems most affected by wildfire—such as tropical rainforests of 
+South America and the boreal forests of North America—are ecologically and 
+geographically distinct. Separating them could offer more meaningful insights 
+into regional wildfire patterns.
+
+
+```{r}
+install.packages("ggtext")
+library(here)
+library(tidyverse)
+library(ggtext)
+library(ggplot2)
+
+wildfire <- read_csv(here("data","annual-area-burnt-by-wildfires.csv"))
+
+wildfire_clean <- wildfire %>%
+  filter(Entity %in% c("North America", "South America", "Asia", "Europe", 
+                       "Africa", "Oceania")) %>%
+  filter(2012 <= Year & 2024 >= Year) %>%
+  rename(area_ha = "Annual area burnt by wildfires")
+
+wildfire_clean$Entity <- factor(wildfire_clean$Entity, 
+                                levels = c("Europe", 
+                                           "Asia", 
+                                           "Oceania", 
+                                           "North America", 
+                                           "South America", "Africa"))
+
+wildfire_clean <- wildfire_clean %>%
+  group_by(Year)%>%
+  mutate(area_pct = area_ha/sum(area_ha))%>%
+  ungroup()
+
+gg_labels <- tibble(
+  Entity = c("Europe", "Asia", "Oceania", "North", "and", "South America", 
+             "Africa"),
+              x = 14,
+              y = c(.985, .93, .86, .795, .74, .68, .30), 
+  color = c("#BFCBB7", "#C1A686", "#B3A3C2", "#b3c3c5", "#6B6B6B", "#81919c", 
+            "#821E1E"))
+
+
+ggplot(wildfire_clean, aes(x = factor(Year), y = area_pct, fill = Entity)) +
+  geom_bar(stat = "identity", width = 0.85) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  scale_x_discrete(breaks = seq(min(wildfire_clean$Year), 
+                                max(wildfire_clean$Year), by = 4)) +
+  scale_fill_manual(values = c(
+    "Africa" = "#821E1E",
+    "North America" = "#b3c3c5",
+    "South America" = "#81919c",
+    "Oceania" = "#B3A3C2",
+    "Asia" = "#C1A686",
+    "Europe" = "#BFCBB7"
+  )) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "black", 
+             linewidth = 0.5, alpha = .35) +
+  geom_hline(yintercept = 0.25, linetype = "dashed", color = "black", 
+             linewidth = 0.5, alpha = .1) +
+  geom_hline(yintercept = 0.75, linetype = "dashed", color = "black", 
+             linewidth = 0.5, alpha = .1) +
+  labs(
+    title = "More than half of the area burned by<br><b>wildfire is in 
+    <span style='color:#821E1E'>Africa</span></b>",
+    subtitle = "Each region's share of the global area burned by wildfire.",
+    x = NULL,
+    y = NULL,
+    fill = NULL,
+    caption = "**Data source:** Global Wildfire Information System (2025)"
+  ) +
+  geom_text(data = gg_labels, aes(x = x, y = y, label = Entity, hjust = 0, 
+                                  color = color), size = 3.5) +
+  scale_color_identity() +
+  theme_minimal() +
+  coord_cartesian(clip = "off") +
+  theme(
+    legend.position = "none",
+    plot.title = ggtext::element_markdown(family = "serif", face = "bold", 
+                                          size = 16),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    plot.caption = ggtext::element_markdown(hjust = 0, color = "#6B6B6B"),
+    plot.subtitle = element_text(size = 10),
+    plot.margin = margin(t = 10, r = 100, b = 10, l = 10, unit = "pt"),
+    aspect.ratio = .80
+  ) 
+```
+```{r}
+ggplot(wildfire_clean) +
+  geom_line(aes(x = Year, y = area_pct, color = Entity)) +
+  scale_x_continuous(breaks = seq(min(wildfire_clean$Year), 
+                                  max(wildfire_clean$Year), by = 2)) +
+  scale_y_continuous(labels = scales::percent_format(), limits = c(0, 1)) +
+  scale_color_manual(values = c(
+    "Africa" = "#0072B2",
+    "North America" = "#E69F00",
+    "South America" = "#56B4E9",
+    "Oceania" = "#009E73",
+    "Asia" = "#F0E442",
+    "Europe" = "#CC0000"
+  )) +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "black", 
+             linewidth = 0.5) +
+  labs(
+    title = "More than half of the area burned by<br><b>wildfire each year 
+    is in <span style='color:#0072B2'>Africa</span></b>",
+    subtitle = "Each region's share of the global area burned by wildfire.",
+    x = NULL,
+    y = "Percentage of Global Area Burned by Wildfire",
+    color = "Region",
+    caption = "**Data source:** Global Wildfire Information System (2025)"
+  ) +
+  theme_minimal(base_family = "serif") +
+  theme(
+    legend.position = "right",
+    plot.title = ggtext::element_markdown(family = "serif", face = "bold", 
+                                          size = 16),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    plot.caption = ggtext::element_markdown(hjust = 0, color = "#6B6B6B"),
+    plot.subtitle = element_text(size = 10),
+    plot.margin = margin(t = 10, r = 10, b = 10, l = 10, unit = "pt")
+  )
+```
